@@ -25,9 +25,14 @@ def download_map(id, dir=dest_dir, debug=False, save_file=True):
         name = re.search("filename=\"(.*?)\"", headers["content-disposition"])
         if name:
             name = name.group(1)
+            name = name.replace('\\', '%5C')
             if save_file:
-                map = urllib2.URLopener()
-                map.retrieve(url, dir % name)
+                try:
+                    map = urllib2.URLopener()
+                    map.retrieve(url, dir % name)
+                except FileNotFoundError:
+                    print("error: Could not save file")
+                    return None
                 if debug: print(id, name)
             return name
         else:

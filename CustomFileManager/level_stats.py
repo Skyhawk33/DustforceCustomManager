@@ -54,6 +54,20 @@ def get_rank(level_name):
     return rank
 
 
+def get_all_ranks(filename):
+    with open(filename, 'r') as f:
+        data = f.read()
+        matches = re.findall(r"<tr><td><a href=[^>]*/level/([^/]*)/all(.*?)</td>", data, flags=re.IGNORECASE)
+    results = {}
+    for m in matches:
+        if 'N/A' in m[1]:
+            continue
+        groups = re.search(r'score score(.).*?score score(.)', m[1])
+        if groups is not None:
+            results[m[0]] = ''.join(groups.groups())
+    return results
+
+
 def get_apple_rank(level_name):
     with open(apple_file, 'r') as f:
         data = f.read()

@@ -1,6 +1,6 @@
 import os
 from tkinter import Tk, messagebox, Frame, Button, Checkbutton, OptionMenu, Label, Message, Entry, \
-    StringVar, IntVar, BooleanVar, BOTH, LEFT, NW, N, E, S, W, X, Menu
+    StringVar, IntVar, BooleanVar, BOTH, LEFT, NW, N, E, S, W, X, Menu, filedialog
 from PIL import Image, ImageTk
 
 from enum import IntEnum
@@ -15,6 +15,7 @@ from CustomFileManager import loadmaps
 from CustomFileManager.publishedsort import Published
 from CustomFileManager.random_level_select import \
     Result, dustkid_link, atlas_link, launch, get_level_candidates, process_command, points_rank
+from CustomFileManager.level_stats import get_all_ranks
 
 from CustomFileManager.network.capture import SubmissionReader
 
@@ -84,11 +85,13 @@ class State(IntEnum):
 
 
 class Window(Frame):
-    def __init__(self, master, level_dict, level_dir, show_stats=False):
+    def __init__(self, master, level_dict, level_dir, index_file, show_stats=False):
         Frame.__init__(self, master)
         self.master = master
         self.level_dict = level_dict
         self.level_dir = level_dir
+        self.index_file = index_file
+        self.filters = None
         self.capture = None
 
         self.candidates = []
@@ -257,7 +260,7 @@ class Window(Frame):
         if mode == 'disabled':
             if self.capture and self.capture.active:
                 self.capture.stop()
-        # TODO: fix auto submit
+        # TODO: fix auto submit?
         else:
             if not self.capture:
                 self.capture = SubmissionReader()
@@ -298,7 +301,10 @@ class Window(Frame):
         if kwargs != self.kwargs:
             # args have changed so we must reload candidates
             self.kwargs = kwargs
-            self.candidates = get_level_candidates(self.level_dict, **kwargs)
+            levels = self.level_dict
+            if self.filters is not None:
+                levels = {k: levels[k] for k in levels if k not in self.filters}
+            self.candidates = get_level_candidates(levels, **kwargs)
         if not self.candidates:
             img_tk = ImageTk.PhotoImage(_blank_image)
             self.image_label.configure(image=img_tk)
@@ -417,6 +423,24 @@ class Window(Frame):
                                             allow_hidden=True, allow_unpublished=True, allow_unknown=True))
         self.stats_text.set(_stats_text % (levels, visible, ssable, apples, apple_ssable, complete_count, ss_count))
 
+    def filter_levels_by_stats(self):
+        filetypes = (('stat files', '*.html'),
+                     ('index files', '*.json'))
+        index_folder = self.index_file.rsplit('/', 1)[0]+'/'
+        filter_file = filedialog.askopenfilename(title='Choose a stat file',
+                                                 initialdir=index_folder, filetypes=filetypes)
+        if filter_file.endswith('.json'):
+            with open(filter_file, 'r') as f:
+                filter_index = json.load(f)
+            self.filters = set(k for k in filter_index if filter_index[k]['rank'] == 'SS')
+        elif filter_file.endswith('.html'):
+            ranks = get_all_ranks(filter_file)
+            self.filters = set(k.split('-')[-1] for k in ranks if ranks[k] == 'SS')
+        else:
+            self.filters = None
+        self.kwargs = {}
+        self.next_map()
+
 
 def main():
     root = Tk()
@@ -445,7 +469,7 @@ def main():
         messagebox.showerror('Error', 'Could not find level index file.\npath: "%s"' % index_file)
         return
 
-    window = Window(root, level_dict, level_dir, stats_var.get())
+    window = Window(root, level_dict, level_dir, index_file, stats_var.get())
 
     def on_close():
         with open(index_file, 'w') as index:
@@ -480,6 +504,10 @@ def main():
     view_menu.add_checkbutton(label='Show stats', variable=stats_var,
                               command=lambda: window.show_stats(stats_var.get()))
     menu_bar.add_cascade(label='View', menu=view_menu)
+
+    filter_menu = Menu(menu_bar, tearoff=0)
+    filter_menu.add_command(label='Exclude from stats...', command=window.filter_levels_by_stats)
+    menu_bar.add_cascade(label='Filter', menu=filter_menu)
 
     root.config(menu=menu_bar)
 

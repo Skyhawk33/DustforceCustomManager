@@ -1,4 +1,5 @@
 import os
+import re
 import urllib.request as url
 from enum import IntEnum
 import json
@@ -30,18 +31,23 @@ def get_published_status(map_name):
     num = name_split[1]
     try:
         data = url.urlopen(website % (num, name))
+        data = str(data.read())
         # There's no definite way to tell if a map is published,
         # but if the name is not visible, that probably means the map is not visible
-        if r'<meta property="og:title" content=" - a Dustforce map" >' in str(data.read()):
+        if r'<meta property="og:title" content=" - a Dustforce map" >' in data:
+            # print(map_name, ',HIDDEN')
             return Published.HIDDEN
         else:
+            # AUTHOR NAME
+            # print(map_name, ','+re.search(r'by </span><strong><a href="http://atlas.dustforce.com/user/([^"]+)"', data).group(1))
             return Published.VISIBLE
-    except:
+    except Exception:
+        # print(map_name, ',UNPUBLISHED')
         return Published.UNPUBLISHED
 
 
 if __name__ == '__main__':
-    for map_name in os.listdir(BASE + read_sub):
+    for map_name in os.listdir(BASE + read_sub):  # ('w-%d' % d for d in range(11060, 11830)):
         try:
             status = get_published_status(map_name)
             print(map_name, Published(status).name)

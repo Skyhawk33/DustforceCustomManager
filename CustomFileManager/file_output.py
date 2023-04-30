@@ -55,6 +55,14 @@ def main():
 
     with open(index_file, 'r') as f:
         level_dict = json.load(f)
+    # with open(index_file.replace('index', 'index_bck_20221019'), 'r') as f2:
+    #     level_dict2 = json.load(f2)
+    #
+    # print(index_file.replace('index', 'index_bck_20221019'))
+    # l = sorted(list(set(level_dict).difference(level_dict2)))
+    # for k in l:
+    #     print(level_dict[k])
+    # return
 
     filenames = []
     # filenames = ['_level_index_a.json', '_level_index_b.json', '_level_index_c.json',
@@ -66,15 +74,16 @@ def main():
             mask = json.load(f)
         filter_dict = filter_index(filter_dict, mask, (lambda level: 'rank' not in level or level['rank'] != 'SS'))
 
-    filter_dict = filter_index(filter_dict, filter_dict,
-                               (lambda level: level['readable'] and
-                                              level['level_type'] in (0, 6,) and
-                                              level['has_end'] and 'ss_impossible' not in level and
-                                              # level['published'] == 3 and
-                                              ('rank' not in level or level['rank'] != 'SS')))
+    # filter_dict = filter_index(filter_dict, filter_dict,
+    #                            (lambda level: level['readable'] and
+    #                                           level['level_type'] in (0, 6,) and
+    #                                           level['has_end'] and 'ss_impossible' not in level and
+    #                                           # level['published'] == 3 and
+    #                                           ('rank' not in level or level['rank'] != 'SS')))
 
     # output = csv_string(filter_dict, ('ID', 'Name', 'URL', 'Level Type', 'Published', 'SS Difficult'))
-    output = csv_string(filter_dict, ('ID', 'filename'))
+    # output = csv_string(filter_dict, ('ID', 'filename'))
+    output = csv_string(filter_dict, ('URL', 'filename', 'Name', 'Level Type', 'Published'))
     # l = output.splitlines()
     # l.sort()
     # output = '\n'.join(l)
