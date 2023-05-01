@@ -1,5 +1,6 @@
 {
     "level_dir": "C:/Program Files (x86)/Steam/steamapps/common/Dustforce/user/levels/",
+    "splits_dir": "C:/Program Files (x86)/Steam/steamapps/common/Dustforce/",
     "index_file": "./_level_index.json",
     "rank_file": "./_custom_stats.html",
     "apple_rank_file": "./_apple_stats.html"

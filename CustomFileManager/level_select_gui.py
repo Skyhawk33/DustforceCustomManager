@@ -18,9 +18,11 @@ from CustomFileManager.random_level_select import \
 from CustomFileManager.level_stats import get_all_ranks
 
 from CustomFileManager.network.capture import SubmissionReader
+from CustomFileManager.filesystem.watcher import SplitsReader
 
 config_file = './_config.json'
 _default_level_dir = "C:/Program Files (x86)/Steam/steamapps/common/Dustforce/user/levels"
+_default_splits_dir = "C:/Program Files (x86)/Steam/steamapps/common/Dustforce/"
 _default_index = './_level_index.json'
 _img_size = (382, 182)
 _option_columns = 4
@@ -76,6 +78,7 @@ _entry_params = {
     'min_id': None,
     'max_id': None
 }
+_splits_suffix = '_splits'
 
 
 class State(IntEnum):
@@ -85,11 +88,12 @@ class State(IntEnum):
 
 
 class Window(Frame):
-    def __init__(self, master, level_dict, level_dir, index_file, show_stats=False):
+    def __init__(self, master, level_dict, level_dir, splits_dir, index_file, show_stats=False):
         Frame.__init__(self, master)
         self.master = master
         self.level_dict = level_dict
         self.level_dir = level_dir
+        self.splits_dir = splits_dir
         self.index_file = index_file
         self.filters = None
         self.capture = None
@@ -182,7 +186,8 @@ class Window(Frame):
         next_row += 1
 
         Label(right, text='Auto Submit').grid(row=next_row, column=0, sticky=W)
-        values = ['disabled'] + [res.name.lower() for res in (Result.LEVEL_CLEARED, Result.SS, Result.APPLE_SS)]
+        values = (['disabled'] + [r.name.lower() for r in (Result.LEVEL_CLEARED, Result.SS, Result.APPLE_SS)] +
+                  [r.name.lower() + _splits_suffix for r in (Result.LEVEL_CLEARED, Result.SS, Result.APPLE_SS)])
         self.auto_submit = StringVar(value=values[0])
         menu = OptionMenu(right, self.auto_submit, *values)
         menu.grid(row=next_row, column=1, sticky=(W, E), columnspan=2)
@@ -257,9 +262,18 @@ class Window(Frame):
 
     def change_auto_mode(self, *args):
         mode = self.auto_submit.get()
+        if self.capture and self.capture.active:
+            self.capture.stop()
+        if self.capture:
+            self.capture = None
         if mode == 'disabled':
-            if self.capture and self.capture.active:
-                self.capture.stop()
+            pass
+        elif mode.endswith(_splits_suffix):
+            if not self.capture:
+                self.capture = SplitsReader(self.splits_dir)
+                self.capture.set_callback(self.auto_submit_callback)
+            if not self.capture.active:
+                self.capture.start()
         # TODO: fix auto submit?
         else:
             if not self.capture:
@@ -275,7 +289,10 @@ class Window(Frame):
         if info is None:
             return
 
-        mode = Result[self.auto_submit.get().upper()]
+        mode_string = self.auto_submit.get()
+        if mode_string.endswith(_splits_suffix):
+            mode_string = mode_string[:-len(_splits_suffix)]
+        mode = Result[mode_string.upper()]
         submit = False
 
         try:
@@ -426,7 +443,7 @@ class Window(Frame):
     def filter_levels_by_stats(self):
         filetypes = (('stat files', '*.html'),
                      ('index files', '*.json'))
-        index_folder = self.index_file.rsplit('/', 1)[0]+'/'
+        index_folder = self.index_file.rsplit('/', 1)[0] + '/'
         filter_file = filedialog.askopenfilename(title='Choose a stat file',
                                                  initialdir=index_folder, filetypes=filetypes)
         if filter_file.endswith('.json'):
@@ -453,6 +470,7 @@ def main():
 
     index_file = config_dict.get('index_file', _default_index)
     level_dir = config_dict.get('level_dir', _default_level_dir) + '/%s'
+    splits_dir = config_dict.get('splits_dir', _default_splits_dir)
     options = config_dict.get('level_select', dict())
 
     global _button_params, _checkbox_params, _entry_params
@@ -469,7 +487,7 @@ def main():
         messagebox.showerror('Error', 'Could not find level index file.\npath: "%s"' % index_file)
         return
 
-    window = Window(root, level_dict, level_dir, index_file, stats_var.get())
+    window = Window(root, level_dict, level_dir, splits_dir, index_file, stats_var.get())
 
     def on_close():
         with open(index_file, 'w') as index:
